@@ -1,4 +1,4 @@
-module bank-account-api
+module bank-api
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -6,8 +6,6 @@ require (
 	github.com/gin-gonic/gin v1.3.0
 	github.com/go-sql-driver/mysql v1.4.1
 	github.com/golang/protobuf v1.2.0 // indirect
-	github.com/gorilla/mux v1.6.2
-	github.com/lib/pq v1.0.0
 	github.com/mattn/go-isatty v0.0.4 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/stretchr/objx v0.1.1 // indirect
