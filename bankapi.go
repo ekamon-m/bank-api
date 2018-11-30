@@ -161,11 +161,10 @@ func (s *BankServiceImp) DeleteByID(id int) error {
 
 func setupRoute(s *Server) *gin.Engine {
 	r := gin.Default()
-	//todos := r.Group("/todos")
 	users := r.Group("/users")
 
 	users.Use(gin.BasicAuth(gin.Accounts{
-		"ekk": "1234",
+		"admin": "1234",
 	}))
 
 	users.GET("/", s.All)
@@ -182,7 +181,6 @@ func main() {
 	dbURL := flag.String("dburl", "root:@tcp(127.0.0.1:3306)/bank", "DB Connection")
 	flag.Parse()
 	addr := fmt.Sprintf("%s:%s", *host, *port)
-
 	db, err := sql.Open("mysql", *dbURL)
 	if err != nil {
 		log.Fatal(err)
