@@ -21,7 +21,7 @@ type BankService interface {
 	All() ([]User, error)
 	Insert(user *User) error
 	GetByID(id int) (*User, error)
-	Update(user *User) (*User, error)
+	Update(id int,user *User) (*User, error)
 	DeleteByID(id int) error
 	
 }
@@ -124,7 +124,8 @@ func (s *Server) Update(c *gin.Context) {
 		return
 	}
 
-	userupdated, err := s.bankService.Update(&user)
+	id, _ := strconv.Atoi(c.Param("id"))
+	userupdated, err := s.bankService.Update(id,&user)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, err)
 		return
@@ -132,14 +133,13 @@ func (s *Server) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, userupdated)
 }
 
-func (s *BankServiceImp) Update(user *User) (*User, error) {
-	fmt.Println("Update Method_2")
+func (s *BankServiceImp) Update(id int,user *User) (*User, error) {
 	stmt := "UPDATE users SET first_name = ?, last_name = ? WHERE id = ?"
-	_, err := s.db.Exec(stmt, user.FirstName, user.LastName, user.ID)
+	_, err := s.db.Exec(stmt, user.FirstName, user.LastName, id)
 	if err != nil {
 		return nil, err
 	}
-	return s.GetByID(user.ID)
+	return s.GetByID(id)
 }
 
 func (s *Server) DeleteByID(c *gin.Context) {
@@ -170,7 +170,7 @@ func setupRoute(s *Server) *gin.Engine {
 	users.GET("/", s.All)
 	users.POST("/", s.Create)
 	users.GET("/:id", s.GetByID)
-	users.PUT("/", s.Update)
+	users.PUT("/:id", s.Update)
 	users.DELETE("/:id", s.DeleteByID)
 	return r
 }
