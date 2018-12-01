@@ -17,7 +17,15 @@ type User struct {
 	LastName  string `json:"last_name"`
 }
 
-type BankService interface {
+type BankAccount struct {
+	ID            int `json:"id"`
+	UserID        string `json:"user_id"`
+	AcctNo 		  int `json:"acct_no"`
+	AcctName      string `json:"acct_name"`
+	Balance       int `json:"balance"`
+}
+
+type UserService interface {
 	All() ([]User, error)
 	Insert(user *User) error
 	GetByID(id int) (*User, error)
@@ -26,18 +34,27 @@ type BankService interface {
 	
 }
 
-type BankServiceImp struct {
+type AccountService interface {
+	InsertAcct(userid int,bacct *BankAccount) error
+	
+}
+
+type UserServiceImp struct {
 	db *sql.DB
 }
 
+type AccountServiceImp struct {
+	db *sql.DB
+}
 
 type Server struct {
 	db            *sql.DB
-	bankService   BankService
+	userService   UserService
+	acctService	  AccountService			
 }
 
 func (s *Server) All(c *gin.Context) {
-	users, err := s.bankService.All()
+	users, err := s.userService.All()
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"object":  "error",
@@ -47,7 +64,7 @@ func (s *Server) All(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, users)
 }
-func (s *BankServiceImp) All() ([]User, error) {
+func (s *UserServiceImp) All() ([]User, error) {
 	stmt := "SELECT id, first_name, last_name FROM users ORDER BY id DESC"
 	rows, err := s.db.Query(stmt)
 	if err != nil {
@@ -76,7 +93,7 @@ func (s *Server) Create(c *gin.Context) {
 		return
 	}
 
-	if err := s.bankService.Insert(&user); err != nil {
+	if err := s.userService.Insert(&user); err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, err)
 		return
 	}
@@ -84,7 +101,7 @@ func (s *Server) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, user)
 }
 
-func (s *BankServiceImp) Insert(user *User) error {
+func (s *UserServiceImp) Insert(user *User) error {
 	row := s.db.QueryRow("INSERT INTO users (first_name, last_name) values (?, ?)", user.FirstName,user.LastName)
 	if err := row.Scan(&user.ID); err != nil {
 		return err
@@ -94,7 +111,7 @@ func (s *BankServiceImp) Insert(user *User) error {
 
 func (s *Server) GetByID(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
-	user, err := s.bankService.GetByID(id)
+	user, err := s.userService.GetByID(id)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, err)
 		return
@@ -102,7 +119,7 @@ func (s *Server) GetByID(c *gin.Context) {
 	c.JSON(http.StatusOK, user)
 }
 
-func (s *BankServiceImp) GetByID(id int) (*User, error) {
+func (s *UserServiceImp) GetByID(id int) (*User, error) {
 	stmt := "SELECT id,first_name, last_name  FROM users WHERE id = ?"
 	row := s.db.QueryRow(stmt, id)
 	var user User
@@ -125,7 +142,7 @@ func (s *Server) Update(c *gin.Context) {
 	}
 
 	id, _ := strconv.Atoi(c.Param("id"))
-	userupdated, err := s.bankService.Update(id,&user)
+	userupdated, err := s.userService.Update(id,&user)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, err)
 		return
@@ -133,7 +150,7 @@ func (s *Server) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, userupdated)
 }
 
-func (s *BankServiceImp) Update(id int,user *User) (*User, error) {
+func (s *UserServiceImp) Update(id int,user *User) (*User, error) {
 	stmt := "UPDATE users SET first_name = ?, last_name = ? WHERE id = ?"
 	_, err := s.db.Exec(stmt, user.FirstName, user.LastName, id)
 	if err != nil {
@@ -144,13 +161,13 @@ func (s *BankServiceImp) Update(id int,user *User) (*User, error) {
 
 func (s *Server) DeleteByID(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
-	if err := s.bankService.DeleteByID(id); err != nil {
+	if err := s.userService.DeleteByID(id); err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, err)
 		return
 	}
 }
 
-func (s *BankServiceImp) DeleteByID(id int) error {
+func (s *UserServiceImp) DeleteByID(id int) error {
 	stmt := "DELETE FROM users WHERE id = ?"
 	_, err := s.db.Exec(stmt, id)
 	if err != nil {
@@ -158,6 +175,34 @@ func (s *BankServiceImp) DeleteByID(id int) error {
 	}
 	return nil
 }
+
+func (s *Server) InsertAcct(c *gin.Context) {
+	var acct BankAccount
+	err := c.ShouldBindJSON(&acct)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"object":  "error",
+			"message": fmt.Sprintf("json: wrong params: %s", err),
+		})
+		return
+	}
+	userid, _ := strconv.Atoi(c.Param("id"))
+	if err := s.acctService.InsertAcct(userid,&acct); err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, err)
+		return
+	}
+
+	c.JSON(http.StatusCreated, acct)
+}
+
+func (s *AccountServiceImp) InsertAcct(userid int,acct *BankAccount) error {
+	row := s.db.QueryRow("INSERT INTO accounts (user_id, acct_no, acct_name) values (?, ?, ?)", userid, acct.AcctNo,acct.AcctName)
+	if err := row.Scan(&acct.ID); err != nil {
+		return err
+	}
+	return nil
+}
+
 
 func setupRoute(s *Server) *gin.Engine {
 	r := gin.Default()
@@ -172,6 +217,8 @@ func setupRoute(s *Server) *gin.Engine {
 	users.GET("/:id", s.GetByID)
 	users.PUT("/:id", s.Update)
 	users.DELETE("/:id", s.DeleteByID)
+
+	users.POST("/:id/bankAccounts", s.InsertAcct)
 	return r
 }
 func main() {
@@ -188,7 +235,10 @@ func main() {
 	
 	s := &Server{
 		db: db,
-		bankService: &BankServiceImp{
+		userService: &UserServiceImp{
+			db: db,
+		},
+		acctService: &AccountServiceImp{
 			db: db,
 		},
 	}
